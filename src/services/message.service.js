@@ -1,11 +1,6 @@
 const API = "https://api.telegram.org/bot";
 
-export async function sendMessage(
-  chatId,
-  text,
-  env,
-  reply_markup = null
-) {
+export async function sendMessage(chatId, text, env, reply_markup = null) {
   await fetch(`${API}${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -17,13 +12,7 @@ export async function sendMessage(
   });
 }
 
-export async function editMessage(
-  chatId,
-  messageId,
-  text,
-  env,
-  reply_markup = null
-) {
+export async function editMessage(chatId, messageId, text, env, reply_markup = null) {
   await fetch(`${API}${env.TELEGRAM_BOT_TOKEN}/editMessageText`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -46,4 +35,4 @@ export async function answerCallback(callbackId, env, text = "") {
       show_alert: false,
     }),
   });
-    }
+}
