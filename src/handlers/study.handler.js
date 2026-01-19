@@ -61,34 +61,44 @@ export async function studyStopHandler(chatId, messageId, userId, env) {
     .bind(userId, null, minutes, todayISO())
     .run();
 
-  const remaining = Math.max(0, DAILY_TARGET_MIN - minutes);
-
-  let msg = `⏹️ Study Stopped\n\nStarted at: ${formatTime(
-    data.startTs
-  )}\nStopped at: ${formatTime(endTs)}\n\nTotal studied today: ${formatHM(
-    minutes
-  )}\nRemaining target: ${formatHM(
-    remaining
-  )}\n\nGood progress — consistency leads to selection 💪`;
-
-  if (minutes >= DAILY_TARGET_MIN) {
-    msg = `🎯 Daily Target Achieved!\n\nStarted at: ${formatTime(
-      data.startTs
-    )}\nStopped at: ${formatTime(endTs)}\n\nTotal studied today: ${formatHM(
-      minutes
-    )}\n\nExcellent discipline for GPSC Dental Class-2 🏆`;
-  }
+  // 🔒 PRIORITY-BASED MESSAGE SELECTION
+  let msg;
 
   if (minutes > DAILY_TARGET_MIN) {
-    msg = `🔥 Extra Effort Noted!\n\nStarted at: ${formatTime(
-      data.startTs
-    )}\nStopped at: ${formatTime(endTs)}\n\nTotal studied today: ${formatHM(
-      minutes
-    )}\nExtra study: ${formatHM(
-      minutes - DAILY_TARGET_MIN
-    )}\n\nThis level of effort builds rank and confidence 💯`;
+    // EXTRA EFFORT
+    msg = `🔥 Extra Effort Noted!
+
+Started at: ${formatTime(data.startTs)}
+Stopped at: ${formatTime(endTs)}
+
+Total studied today: ${formatHM(minutes)}
+Extra study: ${formatHM(minutes - DAILY_TARGET_MIN)}
+
+This level of effort builds rank and confidence 💯`;
+  } else if (minutes === DAILY_TARGET_MIN) {
+    // TARGET ACHIEVED (EXACT MATCH)
+    msg = `🎯 Daily Target Achieved!
+
+Started at: ${formatTime(data.startTs)}
+Stopped at: ${formatTime(endTs)}
+
+Total studied today: ${formatHM(minutes)}
+
+Excellent discipline for GPSC Dental Class-2 🏆`;
+  } else {
+    // NORMAL STOP
+    const remaining = DAILY_TARGET_MIN - minutes;
+    msg = `⏹️ Study Stopped
+
+Started at: ${formatTime(data.startTs)}
+Stopped at: ${formatTime(endTs)}
+
+Total studied today: ${formatHM(minutes)}
+Remaining target: ${formatHM(remaining)}
+
+Good progress — consistency leads to selection 💪`;
   }
 
-  // ✅ EDIT SAME MESSAGE (THIS FIXES SILENT STOP)
+  // ✅ EDIT SAME MESSAGE (INLINE UX)
   await editMessage(chatId, messageId, msg, env);
-    }
+}
