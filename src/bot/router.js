@@ -39,4 +39,4 @@ export async function routeUpdate(update, env) {
       return;
     }
   }
-  }
+}
