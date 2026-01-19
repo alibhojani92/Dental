@@ -8,6 +8,9 @@ export const CALLBACK_IDS = [
   "MENU_SETTINGS",
   "MENU_ADMIN",
   "MENU_HELP",
+
+  // STUDY ACTIONS
+  "STUDY_STOP",
 ];
 
 export function isValidCallback(data) {
