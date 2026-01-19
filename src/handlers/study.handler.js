@@ -1,4 +1,4 @@
-import { sendMessage, editMessage } from "../services/message.service.js";
+import { editMessage, sendMessage } from "../services/message.service.js";
 import {
   getActiveStudyKV,
   startStudyKV,
@@ -18,11 +18,11 @@ import { QUERIES } from "../db/queries.js";
 const DAILY_TARGET_MIN = 8 * 60;
 
 export async function studyStartHandler(chatId, userId, env) {
-  // 🔒 First check: already running?
   const active = await getActiveStudyKV(env.KV, userId);
 
   if (active) {
     const elapsed = diffMinutes(active.startTs, nowTs());
+
     await editMessage(
       chatId,
       active.messageId,
@@ -38,7 +38,6 @@ Please stop the current session before starting a new one.`,
     return;
   }
 
-  // ✅ Start new study
   const msg = await sendMessage(
     chatId,
     `📚 Study Started
@@ -67,7 +66,6 @@ export async function studyStopHandler(chatId, userId, env) {
   const endTs = nowTs();
   const minutes = diffMinutes(data.startTs, endTs);
 
-  // Save to D1
   const db = getDB(env);
   await db
     .prepare(QUERIES.INSERT_STUDY_LOG)
@@ -76,7 +74,6 @@ export async function studyStopHandler(chatId, userId, env) {
 
   let msg;
 
-  // 🎯 FINAL CORRECT LOGIC (>= , not ===)
   if (minutes >= DAILY_TARGET_MIN) {
     msg = `🎯 Daily Target Achieved!
 
@@ -98,6 +95,6 @@ Remaining target: ${formatHM(DAILY_TARGET_MIN - minutes)}
 Good progress — consistency leads to selection 💪`;
   }
 
-  // ✅ Edit SAME study message
-  await editMessage(chatId, data.messageId, msg, env);
-              }
+  // 🔥 THIS IS THE CRITICAL LINE
+  await editMessage(chatId, data.messageId, msg, env, null);
+  }
