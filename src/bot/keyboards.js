@@ -11,3 +11,7 @@ export const MAIN_MENU_KEYBOARD = {
     [{ text: "ℹ️ Help", callback_data: "MENU_HELP" }],
   ],
 };
+
+export const STUDY_ACTIVE_KEYBOARD = {
+  inline_keyboard: [[{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }]],
+};
