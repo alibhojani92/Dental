@@ -1,117 +1,81 @@
 import { sendMessage, editMessage } from "../services/message.service.js";
 import { getActiveStudy, startStudy, stopStudy } from "../engine/timer.engine.js";
 import { STUDY_ACTIVE_KEYBOARD } from "../bot/keyboards.js";
-import { getDB } from "../db/d1.js";
-import { QUERIES } from "../db/queries.js";
 
-// IST helpers
 function nowIST() {
   return new Date(Date.now() + 5.5 * 60 * 60 * 1000);
 }
 function fmtTime(d) {
   return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
-function diffMinutes(startMs, endMs) {
-  return Math.floor((endMs - startMs) / 60000);
+function diffMin(a, b) {
+  return Math.floor((b - a) / 60000);
 }
-function fmtHM(min) {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return `${h}h ${m.toString().padStart(2, "0")}m`;
+function fmtHM(m) {
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
-const DAILY_TARGET_MIN = 8 * 60;
+const TARGET = 480;
 
-// /r — START READING
 export async function startReading(chatId, userId, env) {
   const active = await getActiveStudy(env.KV, userId);
   const now = nowIST();
 
   if (active) {
-    const elapsed = diffMinutes(active.startTs, now.getTime());
+    const elapsed = diffMin(active.startTs, now.getTime());
     await editMessage(
       chatId,
       active.messageId,
       `⚠️ Study session already running.
 
 Started at: ${fmtTime(new Date(active.startTs))}
-Elapsed time: ${fmtHM(elapsed)}
-
-Please stop the current session before starting a new one.`,
+Elapsed time: ${fmtHM(elapsed)}`,
       env,
       STUDY_ACTIVE_KEYBOARD
     );
     return;
   }
 
-  // New study message
-  await sendMessage(
+  const res = await sendMessage(
     chatId,
     `📚 Study Started
 
 Study timer started at: ${fmtTime(now)}
 Elapsed time: 0m
 
-Default daily target: 8 hours
-
-Stay focused — every minute counts for GPSC Dental Class-2 🦷`,
+Default daily target: 8 hours`,
     env,
     STUDY_ACTIVE_KEYBOARD
   );
 
-  // Store session; messageId will be taken from callback on stop
   await startStudy(env.KV, userId, {
     startTs: now.getTime(),
-    messageId: null,
+    messageId: res?.result?.message_id || null,
   });
 }
 
-// /s OR ⏹️ — STOP READING
 export async function stopReading(chatId, userId, messageId, env) {
   const data = await stopStudy(env.KV, userId);
-  if (!data) {
-    await sendMessage(
-      chatId,
-      `ℹ️ No active study session found.
-
-Type /r to start studying.`,
-      env
-    );
-    return;
-  }
+  if (!data) return;
 
   const end = nowIST();
-  const minutes = diffMinutes(data.startTs, end.getTime());
+  const mins = diffMin(data.startTs, end.getTime());
 
-  // Save log
-  const db = getDB(env);
-  await db
-    .prepare(QUERIES.INSERT_STUDY_LOG)
-    .bind(userId, null, minutes, end.toISOString().slice(0, 10))
-    .run();
-
-  let msg;
-  if (minutes >= DAILY_TARGET_MIN) {
-    msg = `🎯 Daily Target Achieved!
+  const msg =
+    mins >= TARGET
+      ? `🎯 Daily Target Achieved!
 
 Started at: ${fmtTime(new Date(data.startTs))}
 Stopped at: ${fmtTime(end)}
 
-Total studied today: ${fmtHM(minutes)}
-
-Excellent discipline for GPSC Dental Class-2 🏆`;
-  } else {
-    msg = `⏹️ Study Stopped
+Total studied today: ${fmtHM(mins)}`
+      : `⏹️ Study Stopped
 
 Started at: ${fmtTime(new Date(data.startTs))}
 Stopped at: ${fmtTime(end)}
 
-Total studied today: ${fmtHM(minutes)}
-Remaining target: ${fmtHM(DAILY_TARGET_MIN - minutes)}
+Total studied today: ${fmtHM(mins)}
+Remaining target: ${fmtHM(TARGET - mins)}`;
 
-Good progress — consistency leads to selection 💪`;
-  }
-
-  // Edit SAME message and remove keyboard
   await editMessage(chatId, messageId, msg, env, null);
                    }
