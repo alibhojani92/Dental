@@ -11,7 +11,6 @@ export async function startStudy(KV, userId, payload) {
 export async function stopStudy(KV, userId) {
   const data = await KV.get(key(userId), { type: "json" });
   if (!data) return null;
-
   await KV.delete(key(userId));
   return data;
 }
