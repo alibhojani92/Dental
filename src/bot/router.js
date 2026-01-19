@@ -12,6 +12,7 @@ import {
 } from "../handlers/study.handler.js";
 
 export async function routeUpdate(update, env) {
+  // TEXT
   if (update.message) {
     const chatId = update.message.chat.id;
     const text = update.message.text || "";
@@ -25,6 +26,7 @@ export async function routeUpdate(update, env) {
     return;
   }
 
+  // CALLBACK
   if (update.callback_query) {
     const cb = update.callback_query;
     const chatId = cb.message.chat.id;
@@ -32,17 +34,20 @@ export async function routeUpdate(update, env) {
     const data = cb.data;
     const userId = cb.from.id;
 
-    await answerCallback(cb.id, env);
-
     if (data === "MENU_STUDY") {
+      await answerCallback(cb.id, env, "📚 Study started");
       await studyStartHandler(chatId, userId, env);
       return;
     }
 
     if (data === "STUDY_STOP") {
+      await answerCallback(cb.id, env, "⏹️ Study stopped & saved");
       await studyStopHandler(chatId, messageId, userId, env);
       return;
     }
+
+    // fallback acknowledge
+    await answerCallback(cb.id, env);
 
     if (!isValidCallback(data)) {
       await editMessage(chatId, messageId, MESSAGES.INVALID_ACTION, env);
