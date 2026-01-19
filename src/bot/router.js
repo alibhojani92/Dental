@@ -7,7 +7,6 @@ import {
   studyStopHandler,
 } from "../handlers/study.handler.js";
 
-// DEBUG
 console.log("ROUTER FILE LOADED");
 
 export default async function router(update, env) {
@@ -19,7 +18,6 @@ export default async function router(update, env) {
       const userId = cb.from.id;
       const data = cb.data;
 
-      console.log("ROUTER CALLBACK:", data);
       await answerCallback(cb.id, env);
 
       if (data === "MENU_STUDY") {
@@ -43,7 +41,10 @@ Use the Stop Study button to finish your session.`,
       }
 
       if (data === "STUDY_STOP") {
-        await studyStopHandler(chatId, userId, env);
+        const msg = await studyStopHandler(userId, env);
+        if (msg) {
+          await sendMessage(chatId, msg, env);
+        }
         return;
       }
 
@@ -62,20 +63,24 @@ Use the Stop Study button to finish your session.`,
     const userId = update.message.from.id;
     const text = update.message.text.trim();
 
-    console.log("ROUTER MESSAGE:", text);
-
     if (text === "/start") {
       await startHandler(chatId, env);
       return;
     }
 
     if (text === "/r") {
-      await studyStartHandler(chatId, userId, env);
+      const res = await studyStartHandler(chatId, userId, env);
+      if (res?.text) {
+        await sendMessage(chatId, res.text, env, res.keyboard || null);
+      }
       return;
     }
 
     if (text === "/s") {
-      await studyStopHandler(chatId, userId, env);
+      const msg = await studyStopHandler(userId, env);
+      if (msg) {
+        await sendMessage(chatId, msg, env);
+      }
       return;
     }
 
@@ -85,4 +90,4 @@ Use the Stop Study button to finish your session.`,
   } catch (err) {
     console.error("ROUTER ERROR:", err?.message || err, err?.stack);
   }
-  }
+              }
