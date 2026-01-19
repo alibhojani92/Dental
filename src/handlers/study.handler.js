@@ -2,143 +2,119 @@
 
 import { sendMessage, editMessage } from "../services/telegram.service.js";
 
-// ===== Helpers (IST) =====
-function nowIST() {
-  return new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-}
-function fmtTime(d) {
-  return d.toLocaleTimeString("en-IN", {
+/* ===== Helpers (IST – SAFE) ===== */
+function fmtTime(ts) {
+  return new Date(ts).toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
+    timeZone: "Asia/Kolkata",
   });
 }
+
 function diffMinutes(startMs, endMs) {
   return Math.floor((endMs - startMs) / 60000);
 }
+
 function fmtHM(min) {
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return `${h}h ${m.toString().padStart(2, "0")}m`;
+  return `${h}h ${m}m`;
 }
 
 const DAILY_TARGET_MIN = 8 * 60;
 const kvKey = (uid) => `study:active:${uid}`;
 
-// ===== START STUDY (/r) =====
+/* ===== START STUDY (/r) ===== */
 export async function studyStartHandler(chatId, userId, env) {
   const existing = await env.KV.get(kvKey(userId), { type: "json" });
-  const now = nowIST();
+  const startTs = Date.now();
 
-  // If already running → edit same message (if we have it) or send info
   if (existing) {
-    const elapsed = diffMinutes(existing.startTs, now.getTime());
-    if (existing.messageId) {
-      await editMessage(
-        chatId,
-        existing.messageId,
-        `⚠️ Study session already running.
+    const elapsed = diffMinutes(existing.startTs, startTs);
+    await sendMessage(
+      chatId,
+      `Study session already running.
 
-Started at: ${fmtTime(new Date(existing.startTs))}
+Started at: ${fmtTime(existing.startTs)}
 Elapsed time: ${fmtHM(elapsed)}
 
 Please stop the current session before starting a new one.`,
-        env,
-        {
-          inline_keyboard: [[{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }]],
-        }
-      );
-    } else {
-      await sendMessage(
-        chatId,
-        `⚠️ Study session already running.
-
-Started at: ${fmtTime(new Date(existing.startTs))}
-Elapsed time: ${fmtHM(elapsed)}
-
-Please stop the current session before starting a new one.`,
-        env,
-        {
-          inline_keyboard: [[{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }]],
-        }
-      );
-    }
+      env,
+      {
+        inline_keyboard: [[{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }]],
+      }
+    );
     return;
   }
 
-  // New study message
   const res = await sendMessage(
     chatId,
-    `📚 Study Started
+    `Study Started
 
-Study timer started at: ${fmtTime(now)}
+Study timer started at: ${fmtTime(startTs)}
 Elapsed time: 0m
 
 Default daily target: 8 hours
 
-Stay focused — every minute counts for GPSC Dental Class-2 🦷`,
+Stay focused — every minute counts for GPSC Dental Class-2`,
     env,
     {
       inline_keyboard: [[{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }]],
     }
   );
 
-  // Persist session (store messageId for clean edits on stop)
-  const messageId = res?.result?.message_id || null;
   await env.KV.put(
     kvKey(userId),
     JSON.stringify({
-      startTs: now.getTime(),
-      messageId,
+      startTs,
+      messageId: res?.result?.message_id || null,
     })
   );
 }
 
-// ===== STOP STUDY (/s or ⏹️) =====
+/* ===== STOP STUDY (/s or ⏹️) ===== */
 export async function studyStopHandler(chatId, userId, env) {
   const data = await env.KV.get(kvKey(userId), { type: "json" });
   if (!data) {
-    await sendMessage(
-      chatId,
-      `ℹ️ No active study session found.
-
-Type /r to start studying.`,
-      env
-    );
+    await sendMessage(chatId, "No active study session found.\nType /r to start.", env);
     return;
   }
 
-  const end = nowIST();
-  const minutes = diffMinutes(data.startTs, end.getTime());
-
+  const endTs = Date.now();
+  const minutes = diffMinutes(data.startTs, endTs);
   await env.KV.delete(kvKey(userId));
 
   let msg;
   if (minutes >= DAILY_TARGET_MIN) {
-    msg = `🎯 Daily Target Achieved!
+    msg = `Daily Target Achieved!
 
-Started at: ${fmtTime(new Date(data.startTs))}
-Stopped at: ${fmtTime(end)}
+Started at: ${fmtTime(data.startTs)}
+Stopped at: ${fmtTime(endTs)}
 
 Total studied today: ${fmtHM(minutes)}
 
-Excellent discipline for GPSC Dental Class-2 🏆`;
+Excellent discipline for GPSC Dental Class-2`;
   } else {
-    msg = `⏹️ Study Stopped
+    msg = `Study Stopped
 
-Started at: ${fmtTime(new Date(data.startTs))}
-Stopped at: ${fmtTime(end)}
+Started at: ${fmtTime(data.startTs)}
+Stopped at: ${fmtTime(endTs)}
 
 Total studied today: ${fmtHM(minutes)}
 Remaining target: ${fmtHM(DAILY_TARGET_MIN - minutes)}
 
-Good progress — consistency leads to selection 💪`;
+Good progress — consistency matters`;
   }
 
-  // Edit SAME message if possible; else send new message
+  /* SAFE SEND: try edit, fallback to send */
   if (data.messageId) {
-    await editMessage(chatId, data.messageId, msg, env, null);
+    try {
+      await editMessage(chatId, data.messageId, msg, env, null);
+    } catch {
+      await sendMessage(chatId, msg, env);
+    }
   } else {
     await sendMessage(chatId, msg, env);
   }
-    }
+  }
