@@ -1,66 +1,145 @@
-import { sendMessage, answerCallback } from "../services/message.service.js";
-import { startReading, stopReading } from "../handlers/study.handler.js";
+// src/bot/router.js
 
-console.log("ROUTER FILE LOADED");
+import { sendMessage, editMessage, answerCallback } from "../services/telegram.service.js";
+import { startStudy, stopStudy } from "../handlers/study.handler.js";
+import { buildMainMenu } from "../ui/menus.js";
 
-export default async function router(update, env) {
+/**
+ * MAIN ROUTER
+ */
+export async function router(update, env) {
   try {
-    /* ============ COMMANDS ============ */
-    if (update.message && update.message.text) {
+    console.log("TELEGRAM UPDATE:", JSON.stringify(update));
+
+    /* ---------------- MESSAGE HANDLING ---------------- */
+    if (update.message) {
       const chatId = update.message.chat.id;
-      const userId = update.message.from.id;
-      const text = update.message.text.trim();
+      const text = update.message.text?.trim() || "";
 
-      console.log("ROUTER MESSAGE:", text);
-
-      if (text === "/r") {
-        await startReading(chatId, userId, env);
-        return;
-      }
-
-      if (text === "/s") {
+      // /start
+      if (text === "/start") {
         await sendMessage(
           chatId,
-          "ℹ️ Use the ⏹️ Stop Study button to stop and save your session.",
-          env
+          `Welcome to GPSC Dental Class-2 Preparation Bot 🦷
+
+Your complete companion for:
+• Smart study tracking
+• Exam-oriented MCQ tests
+• Performance analysis
+• Consistent preparation
+
+Choose an option below 👇`,
+          env,
+          buildMainMenu()
         );
         return;
       }
 
-      return;
+      // /r → start study
+      if (text === "/r") {
+        await startStudy(chatId, update.message.from.id, env);
+        return;
+      }
+
+      // /s → stop study
+      if (text === "/s") {
+        await stopStudy(chatId, update.message.from.id, env);
+        return;
+      }
+
+      // unknown command
+      if (text.startsWith("/")) {
+        await sendMessage(
+          chatId,
+          "❗ Unknown command.\nUse /start to open the menu.",
+          env
+        );
+        return;
+      }
     }
 
-    /* ============ INLINE CALLBACKS ============ */
+    /* ---------------- CALLBACK HANDLING ---------------- */
     if (update.callback_query) {
       const cb = update.callback_query;
       const chatId = cb.message.chat.id;
-      const userId = cb.from.id;
+      const messageId = cb.message.message_id;
       const data = cb.data;
 
-      console.log("ROUTER CALLBACK:", data);
+      // remove loading popup
+      await answerCallback(cb.id, env);
 
+      /* ----- STUDY ZONE ----- */
       if (data === "MENU_STUDY") {
-        await answerCallback(cb.id, env);
-        await sendMessage(
+        await editMessage(
           chatId,
-          `📚 Study Zone
+          messageId,
+          `📚 *Study Zone*
 
-To start studying, type:
-/r`,
-          env
+Use the options below:
+• Start Study (/r)
+• Stop Study (/s)
+
+Track your preparation consistently 💪`,
+          env,
+          {
+            inline_keyboard: [
+              [{ text: "▶️ Start Study", callback_data: "STUDY_START" }],
+              [{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }],
+              [{ text: "⬅️ Back to Menu", callback_data: "BACK_TO_MENU" }]
+            ]
+          }
         );
+        return;
+      }
+
+      if (data === "STUDY_START") {
+        await startStudy(chatId, cb.from.id, env);
         return;
       }
 
       if (data === "STUDY_STOP") {
-        await answerCallback(cb.id, env);
-        await stopReading(chatId, userId, cb.message.message_id, env);
+        await stopStudy(chatId, cb.from.id, env);
         return;
       }
 
-      await answerCallback(cb.id, env);
+      /* ----- PLACEHOLDER MENUS ----- */
+      if (
+        data === "MENU_TEST" ||
+        data === "MENU_PERFORMANCE" ||
+        data === "MENU_REVISION" ||
+        data === "MENU_SCHEDULE" ||
+        data === "MENU_STREAK" ||
+        data === "MENU_SETTINGS" ||
+        data === "MENU_ADMIN" ||
+        data === "MENU_HELP"
+      ) {
+        await editMessage(
+          chatId,
+          messageId,
+          "🚧 This feature will be activated in the next phase.\nPlease continue using Study Zone for now.",
+          env,
+          {
+            inline_keyboard: [
+              [{ text: "⬅️ Back to Menu", callback_data: "BACK_TO_MENU" }]
+            ]
+          }
+        );
+        return;
+      }
+
+      /* ----- BACK TO MENU ----- */
+      if (data === "BACK_TO_MENU") {
+        await editMessage(
+          chatId,
+          messageId,
+          `Choose an option below 👇`,
+          env,
+          buildMainMenu()
+        );
+        return;
+      }
     }
   } catch (err) {
-    console.error("ROUTER ERROR:", err?.message || err);
+    console.error("ROUTER ERROR:", err);
   }
 }
