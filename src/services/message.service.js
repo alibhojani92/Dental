@@ -20,9 +20,12 @@ export async function sendMessage(
 
   const data = await res.json();
 
-  if (returnMessage) {
+  // 🔒 MUST return message object when asked
+  if (returnMessage === true) {
     return data.result;
   }
+
+  return null;
 }
 
 export async function editMessage(
