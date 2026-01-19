@@ -1,0 +1,2 @@
+-- Placeholder for MCQ seeding
+-- Actual MCQs will be added via admin panel
