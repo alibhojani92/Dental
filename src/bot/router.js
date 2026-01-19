@@ -1,6 +1,7 @@
 import { isValidCallback } from "./validator.js";
 import { sendMessage, editMessage } from "../services/message.service.js";
 import { startHandler } from "../handlers/start.handler.js";
+import { MESSAGES } from "./messages.js";
 
 export async function routeUpdate(update, env) {
   // TEXT
@@ -13,7 +14,7 @@ export async function routeUpdate(update, env) {
       return;
     }
 
-    await sendMessage(chatId, "Use /start to open the menu.", env);
+    await sendMessage(chatId, MESSAGES.USE_START, env);
     return;
   }
 
@@ -25,28 +26,14 @@ export async function routeUpdate(update, env) {
     const data = cb.data;
 
     if (!isValidCallback(data)) {
-      await editMessage(chatId, messageId, "⚠️ Invalid action.", env);
+      await editMessage(chatId, messageId, MESSAGES.INVALID_ACTION, env);
       return;
     }
 
-    const placeholders = {
-      MENU_STUDY: "📚 Study Zone\n\nFeature will be activated in next phase.",
-      MENU_TEST: "📝 Test Zone\n\nFeature will be activated in next phase.",
-      MENU_PERFORMANCE: "📊 Performance\n\nFeature will be activated in next phase.",
-      MENU_REVISION: "🧠 Revision & Weak Areas\n\nFeature will be activated in next phase.",
-      MENU_SCHEDULE: "⏰ Schedule & Target\n\nFeature will be activated in next phase.",
-      MENU_STREAK: "🏆 Streak & Rank\n\nFeature will be activated in next phase.",
-      MENU_SETTINGS: "⚙️ Settings\n\nFeature will be activated in next phase.",
-      MENU_ADMIN: "👮 Admin Panel\n\nRestricted access.",
-      MENU_HELP:
-        "ℹ️ Help\n\nCommands:\n/start – Main menu\n\nMore features coming soon.",
-    };
+    const reply =
+      MESSAGES.PLACEHOLDERS[data] ||
+      "Feature will be activated in next phase.";
 
-    await editMessage(
-      chatId,
-      messageId,
-      placeholders[data] || "Coming soon.",
-      env
-    );
+    await editMessage(chatId, messageId, reply, env);
   }
-}
+        }
