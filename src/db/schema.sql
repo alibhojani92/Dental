@@ -1,0 +1,68 @@
+-- USERS
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  telegram_id TEXT UNIQUE NOT NULL,
+  name TEXT,
+  role TEXT DEFAULT 'student',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- SUBJECTS (Dental Pulse mapping)
+CREATE TABLE IF NOT EXISTS subjects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL
+);
+
+-- MCQs
+CREATE TABLE IF NOT EXISTS mcqs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_code TEXT NOT NULL,
+  question TEXT NOT NULL,
+  option_a TEXT NOT NULL,
+  option_b TEXT NOT NULL,
+  option_c TEXT NOT NULL,
+  option_d TEXT NOT NULL,
+  correct_option TEXT NOT NULL,
+  explanation TEXT NOT NULL,
+  difficulty TEXT DEFAULT 'medium',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- STUDY LOGS (final time only)
+CREATE TABLE IF NOT EXISTS study_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  telegram_id TEXT NOT NULL,
+  subject_code TEXT,
+  duration_minutes INTEGER NOT NULL,
+  study_date DATE NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- TEST SESSIONS
+CREATE TABLE IF NOT EXISTS tests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  telegram_id TEXT NOT NULL,
+  test_type TEXT NOT NULL,
+  started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME
+);
+
+-- TEST ANSWERS
+CREATE TABLE IF NOT EXISTS test_answers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  test_id INTEGER NOT NULL,
+  mcq_id INTEGER NOT NULL,
+  selected_option TEXT,
+  is_correct INTEGER DEFAULT 0,
+  is_timeout INTEGER DEFAULT 0
+);
+
+-- DAILY REPORTS
+CREATE TABLE IF NOT EXISTS daily_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  telegram_id TEXT NOT NULL,
+  report_date DATE NOT NULL,
+  study_minutes INTEGER DEFAULT 0,
+  accuracy REAL DEFAULT 0
+);
