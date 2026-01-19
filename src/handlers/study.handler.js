@@ -1,4 +1,4 @@
-import { editMessage, sendMessage } from "../services/message.service.js";
+import { sendMessage, editMessage } from "../services/message.service.js";
 import {
   getActiveStudyKV,
   startStudyKV,
@@ -38,6 +38,7 @@ Please stop the current session before starting a new one.`,
     return;
   }
 
+  // ✅ THIS WILL NOW RETURN message_id
   const msg = await sendMessage(
     chatId,
     `📚 Study Started
@@ -95,6 +96,6 @@ Remaining target: ${formatHM(DAILY_TARGET_MIN - minutes)}
 Good progress — consistency leads to selection 💪`;
   }
 
-  // 🔥 THIS IS THE CRITICAL LINE
+  // ✅ SAME message edited, keyboard removed
   await editMessage(chatId, data.messageId, msg, env, null);
-  }
+}
