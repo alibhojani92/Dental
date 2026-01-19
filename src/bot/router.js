@@ -1,5 +1,9 @@
 import { isValidCallback } from "./validator.js";
-import { sendMessage, editMessage } from "../services/message.service.js";
+import {
+  sendMessage,
+  editMessage,
+  answerCallback,
+} from "../services/message.service.js";
 import { startHandler } from "../handlers/start.handler.js";
 import { MESSAGES } from "./messages.js";
 import {
@@ -28,13 +32,15 @@ export async function routeUpdate(update, env) {
     const data = cb.data;
     const userId = cb.from.id;
 
+    await answerCallback(cb.id, env);
+
     if (data === "MENU_STUDY") {
       await studyStartHandler(chatId, userId, env);
       return;
     }
 
     if (data === "STUDY_STOP") {
-      await studyStopHandler(chatId, userId, env);
+      await studyStopHandler(chatId, messageId, userId, env);
       return;
     }
 
@@ -43,10 +49,11 @@ export async function routeUpdate(update, env) {
       return;
     }
 
-    const reply =
-      MESSAGES.PLACEHOLDERS[data] ||
-      "Feature will be activated in next phase.";
-
-    await editMessage(chatId, messageId, reply, env);
+    await editMessage(
+      chatId,
+      messageId,
+      MESSAGES.PLACEHOLDERS[data],
+      env
+    );
   }
-                        }
+}
