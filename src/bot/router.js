@@ -41,12 +41,13 @@ export async function routeUpdate(update, env) {
     }
 
     if (data === "STUDY_STOP") {
-      await answerCallback(cb.id, env, "⏹️ Study stopped & saved");
+      // 🔒 Popup = SHORT CONFIRMATION ONLY
+      await answerCallback(cb.id, env, "⏹️ Study saved");
+      // 🔒 Actual result MUST be message edit
       await studyStopHandler(chatId, messageId, userId, env);
       return;
     }
 
-    // fallback acknowledge
     await answerCallback(cb.id, env);
 
     if (!isValidCallback(data)) {
