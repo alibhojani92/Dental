@@ -10,6 +10,6 @@ Cloudflare Workers based Telegram bot.
 - Safe placeholders (no business logic)
 
 Tech:
-- Cloudflare Workers
+- Cloudflare Worker
 - Telegram Bot API
 - JavaScript (ES Modules)
