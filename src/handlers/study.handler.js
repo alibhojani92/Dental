@@ -1,10 +1,7 @@
-import { sendMessage } from "../services/message.service.js";
+import { editMessage, sendMessage } from "../services/message.service.js";
 import { getDB } from "../db/d1.js";
 import { QUERIES } from "../db/queries.js";
-import {
-  startStudyKV,
-  stopStudyKV,
-} from "../engine/timer.engine.js";
+import { stopStudyKV, startStudyKV } from "../engine/timer.engine.js";
 import {
   formatTime,
   diffMinutes,
@@ -20,12 +17,11 @@ export async function studyStartHandler(chatId, userId, env) {
   const res = await startStudyKV(env.KV, userId);
 
   if (res.already) {
-    const { startTs } = res.data;
-    const elapsedMin = diffMinutes(startTs, nowTs());
+    const elapsedMin = diffMinutes(res.data.startTs, nowTs());
     await sendMessage(
       chatId,
       `⚠️ Study session already running.\n\nStarted at: ${formatTime(
-        startTs
+        res.data.startTs
       )}\nElapsed time: ${formatHM(elapsedMin)}\n\nPlease stop the current session before starting a new one.`,
       env,
       STUDY_ACTIVE_KEYBOARD
@@ -37,18 +33,19 @@ export async function studyStartHandler(chatId, userId, env) {
     chatId,
     `📚 Study Started\n\nStudy timer started at: ${formatTime(
       res.data.startTs
-    )} ⏱️\nElapsed time: 0m\n\nDefault daily target: 8 hours\n\nStay focused — every minute counts for GPSC Dental Class-2 🦷`,
+    )}\nElapsed time: 0m\n\nDefault daily target: 8 hours\n\nStay focused — every minute counts for GPSC Dental Class-2 🦷`,
     env,
     STUDY_ACTIVE_KEYBOARD
   );
 }
 
-export async function studyStopHandler(chatId, userId, env) {
+export async function studyStopHandler(chatId, messageId, userId, env) {
   const data = await stopStudyKV(env.KV, userId);
 
   if (!data) {
-    await sendMessage(
+    await editMessage(
       chatId,
+      messageId,
       "⚠️ No active study session found.\n\nPlease start studying first.",
       env
     );
@@ -92,5 +89,6 @@ export async function studyStopHandler(chatId, userId, env) {
     )}\n\nThis level of effort builds rank and confidence 💯`;
   }
 
-  await sendMessage(chatId, msg, env);
-}
+  // ✅ EDIT SAME MESSAGE (THIS FIXES SILENT STOP)
+  await editMessage(chatId, messageId, msg, env);
+    }
