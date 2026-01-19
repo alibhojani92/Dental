@@ -1,39 +1,30 @@
-// src/services/telegram.service.js
-
 const API = "https://api.telegram.org/bot";
 
 async function tgFetch(env, method, payload) {
+  console.log("TG CALL:", method, JSON.stringify(payload));
+
   const res = await fetch(`${API}${env.TELEGRAM_BOT_TOKEN}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  return res.json();
+
+  const json = await res.json();
+  console.log("TG RESPONSE:", method, JSON.stringify(json));
+
+  return json;
 }
 
 export async function sendMessage(chatId, text, env, reply_markup = null) {
   return tgFetch(env, "sendMessage", {
     chat_id: chatId,
-    text,                 // 👈 plain text
+    text,
     reply_markup,
-    // ❌ parse_mode REMOVED
   });
 }
 
-export async function editMessage(chatId, messageId, text, env, reply_markup = null) {
-  return tgFetch(env, "editMessageText", {
-    chat_id: chatId,
-    message_id: messageId,
-    text,                 // 👈 plain text
-    reply_markup,
-    // ❌ parse_mode REMOVED
-  });
-}
-
-export async function answerCallback(callbackId, env, text = "") {
+export async function answerCallback(callbackId, env) {
   return tgFetch(env, "answerCallbackQuery", {
     callback_query_id: callbackId,
-    text,
-    show_alert: false,
   });
 }
