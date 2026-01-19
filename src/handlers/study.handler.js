@@ -1,81 +1,71 @@
-import { sendMessage, editMessage } from "../services/message.service.js";
-import { getActiveStudy, startStudy, stopStudy } from "../engine/timer.engine.js";
-import { STUDY_ACTIVE_KEYBOARD } from "../bot/keyboards.js";
+// src/handlers/study.handler.js
 
-function nowIST() {
-  return new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-}
-function fmtTime(d) {
-  return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-}
-function diffMin(a, b) {
-  return Math.floor((b - a) / 60000);
-}
-function fmtHM(m) {
-  return `${Math.floor(m / 60)}h ${m % 60}m`;
+import { sendMessage } from "../services/telegram.service.js";
+
+function istTime(ts = Date.now()) {
+  return new Date(ts).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata"
+  });
 }
 
-const TARGET = 480;
+export async function studyStartHandler(chatId, userId, env, fromButton) {
+  const key = `study:${userId}`;
+  const existing = await env.KV.get(key);
 
-export async function startReading(chatId, userId, env) {
-  const active = await getActiveStudy(env.KV, userId);
-  const now = nowIST();
-
-  if (active) {
-    const elapsed = diffMin(active.startTs, now.getTime());
-    await editMessage(
+  if (existing) {
+    const data = JSON.parse(existing);
+    await sendMessage(
       chatId,
-      active.messageId,
-      `⚠️ Study session already running.
-
-Started at: ${fmtTime(new Date(active.startTs))}
-Elapsed time: ${fmtHM(elapsed)}`,
-      env,
-      STUDY_ACTIVE_KEYBOARD
+      `⚠️ Study session already running.\n\nStarted at: ${istTime(data.start)}\nElapsed time: 0h 0m\n\nPlease stop the current session before starting a new one.`,
+      env
     );
     return;
   }
 
-  const res = await sendMessage(
+  const startTime = Date.now();
+  await env.KV.put(key, JSON.stringify({ start: startTime }));
+
+  await sendMessage(
     chatId,
-    `📚 Study Started
-
-Study timer started at: ${fmtTime(now)}
-Elapsed time: 0m
-
-Default daily target: 8 hours`,
+    `📚 Study Started\n\nStudy timer started at: ${istTime(startTime)}\nElapsed time: 0m\n\nDefault daily target: 8 hours\n\nStay focused — every minute counts for GPSC Dental Class-2 🦷`,
     env,
-    STUDY_ACTIVE_KEYBOARD
+    {
+      inline_keyboard: [
+        [{ text: "⏹️ Stop Study", callback_data: "STOP_STUDY" }]
+      ]
+    }
   );
-
-  await startStudy(env.KV, userId, {
-    startTs: now.getTime(),
-    messageId: res?.result?.message_id || null,
-  });
 }
 
-export async function stopReading(chatId, userId, messageId, env) {
-  const data = await stopStudy(env.KV, userId);
-  if (!data) return;
+export async function studyStopHandler(chatId, userId, env) {
+  const key = `study:${userId}`;
+  const existing = await env.KV.get(key);
 
-  const end = nowIST();
-  const mins = diffMin(data.startTs, end.getTime());
+  if (!existing) {
+    await sendMessage(
+      chatId,
+      "⚠️ No active study session found.",
+      env
+    );
+    return;
+  }
 
-  const msg =
-    mins >= TARGET
-      ? `🎯 Daily Target Achieved!
+  const data = JSON.parse(existing);
+  const stopTime = Date.now();
+  const diffMs = stopTime - data.start;
+  const totalMin = Math.floor(diffMs / 60000);
+  const hours = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
 
-Started at: ${fmtTime(new Date(data.startTs))}
-Stopped at: ${fmtTime(end)}
+  await env.KV.delete(key);
 
-Total studied today: ${fmtHM(mins)}`
-      : `⏹️ Study Stopped
-
-Started at: ${fmtTime(new Date(data.startTs))}
-Stopped at: ${fmtTime(end)}
-
-Total studied today: ${fmtHM(mins)}
-Remaining target: ${fmtHM(TARGET - mins)}`;
-
-  await editMessage(chatId, messageId, msg, env, null);
-                   }
+  // 🔥 FINAL CONFIRMED MESSAGE (NOT POPUP ONLY)
+  await sendMessage(
+    chatId,
+    `🎯 Daily Target Achieved!\n\nStarted at: ${istTime(data.start)}\nStopped at: ${istTime(stopTime)}\n\nTotal studied today: ${hours}h ${mins}m\n\nExcellent discipline for GPSC Dental Class-2 🏆`,
+    env
+  );
+}
