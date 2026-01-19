@@ -25,3 +25,7 @@ id = "1a154163dd614f8da7d889b5aa04701b"
 binding = "DB"
 database_name = "gpsc_dental_db"
 database_id = "5d374e7d-2d0f-4c7e-87ae-aa2e2f949515"
+
+
+[observability]
+enabled = false
