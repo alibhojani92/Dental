@@ -3,7 +3,6 @@ import { getDB } from "../db/d1.js";
 import { QUERIES } from "../db/queries.js";
 import {
   startStudyKV,
-  getActiveStudyKV,
   stopStudyKV,
 } from "../engine/timer.engine.js";
 import {
@@ -94,4 +93,4 @@ export async function studyStopHandler(chatId, userId, env) {
   }
 
   await sendMessage(chatId, msg, env);
-  }
+}
