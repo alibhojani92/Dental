@@ -14,9 +14,9 @@ async function tgFetch(env, method, payload) {
 export async function sendMessage(chatId, text, env, reply_markup = null) {
   return tgFetch(env, "sendMessage", {
     chat_id: chatId,
-    text,
+    text,                 // 👈 plain text
     reply_markup,
-    parse_mode: "Markdown",
+    // ❌ parse_mode REMOVED
   });
 }
 
@@ -24,9 +24,9 @@ export async function editMessage(chatId, messageId, text, env, reply_markup = n
   return tgFetch(env, "editMessageText", {
     chat_id: chatId,
     message_id: messageId,
-    text,
+    text,                 // 👈 plain text
     reply_markup,
-    parse_mode: "Markdown",
+    // ❌ parse_mode REMOVED
   });
 }
 
@@ -36,4 +36,4 @@ export async function answerCallback(callbackId, env, text = "") {
     text,
     show_alert: false,
   });
-                                     }
+}
