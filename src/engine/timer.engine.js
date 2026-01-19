@@ -1,16 +1,17 @@
-const KEY = (uid) => `study:active:${uid}`;
+const key = (userId) => `study:active:${userId}`;
 
-export async function getActiveStudyKV(KV, userId) {
-  return KV.get(KEY(userId), { type: "json" });
+export async function getActiveStudy(KV, userId) {
+  return KV.get(key(userId), { type: "json" });
 }
 
-export async function startStudyKV(KV, userId, data) {
-  await KV.put(KEY(userId), JSON.stringify(data));
+export async function startStudy(KV, userId, payload) {
+  await KV.put(key(userId), JSON.stringify(payload));
 }
 
-export async function stopStudyKV(KV, userId) {
-  const data = await KV.get(KEY(userId), { type: "json" });
+export async function stopStudy(KV, userId) {
+  const data = await KV.get(key(userId), { type: "json" });
   if (!data) return null;
-  await KV.delete(KEY(userId));
+
+  await KV.delete(key(userId));
   return data;
 }
