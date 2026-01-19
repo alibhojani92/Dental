@@ -26,14 +26,16 @@ export async function editMessage(chatId, messageId, text, env, reply_markup) {
 }
 
 /**
- * REQUIRED by Telegram for every callback_query
+ * Telegram callback confirmation (toast)
  */
-export async function answerCallback(callbackId, env) {
+export async function answerCallback(callbackId, env, text = "") {
   await fetch(`${API}${env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       callback_query_id: callbackId,
+      text,            // 👈 THIS is the missing UX part
+      show_alert: false,
     }),
   });
-    }
+              }
