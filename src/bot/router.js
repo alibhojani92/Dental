@@ -1,13 +1,13 @@
 // src/bot/router.js
 
-import { sendMessage, editMessage, answerCallback } from "../services/telegram.service.js";
+import { sendMessage, answerCallback } from "../services/telegram.service.js";
 import { startHandler } from "../handlers/start.handler.js";
 import {
   studyStartHandler,
   studyStopHandler,
 } from "../handlers/study.handler.js";
 
-// DEBUG (keep during verification)
+// DEBUG
 console.log("ROUTER FILE LOADED");
 
 export default async function router(update, env) {
@@ -16,7 +16,6 @@ export default async function router(update, env) {
     if (update.callback_query) {
       const cb = update.callback_query;
       const chatId = cb.message.chat.id;
-      const messageId = cb.message.message_id;
       const userId = cb.from.id;
       const data = cb.data;
 
@@ -24,15 +23,14 @@ export default async function router(update, env) {
       await answerCallback(cb.id, env);
 
       if (data === "MENU_STUDY") {
-        await editMessage(
+        await sendMessage(
           chatId,
-          messageId,
-          `📚 *Study Zone*
+          `Study Zone
 
 To start studying, type:
 /r
 
-Use the button below to stop an active session.`,
+Use the Stop Study button to finish your session.`,
           env,
           {
             inline_keyboard: [
@@ -82,9 +80,9 @@ Use the button below to stop an active session.`,
     }
 
     if (text.startsWith("/")) {
-      await sendMessage(chatId, "❓ Unknown command. Use /start.", env);
+      await sendMessage(chatId, "Unknown command. Use /start.", env);
     }
   } catch (err) {
     console.error("ROUTER ERROR:", err?.message || err, err?.stack);
   }
-}
+  }
