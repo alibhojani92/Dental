@@ -1,0 +1,27 @@
+name = "gpsc-dental-bot"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# -----------------------------
+# TELEGRAM BOT TOKEN
+# -----------------------------
+# ❌ Token here nahi lakhvanu
+# ✅ Token secret ma set karvanu:
+# wrangler secret put TELEGRAM_BOT_TOKEN
+
+
+# -----------------------------
+# KV NAMESPACE (AUTO BIND)
+# -----------------------------
+[[kv_namespaces]]
+binding = "KV"
+id = "1a154163dd614f8da7d889b5aa04701b"
+
+
+# -----------------------------
+# D1 DATABASE (AUTO BIND)
+# -----------------------------
+[[d1_databases]]
+binding = "DB"
+database_name = "gpsc_dental_db"
+database_id = "5d374e7d-2d0f-4c7e-87ae-aa2e2f949515"
