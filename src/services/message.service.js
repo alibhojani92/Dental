@@ -20,8 +20,7 @@ export async function sendMessage(
 
   const data = await res.json();
 
-  // 🔒 MUST return message object when asked
-  if (returnMessage === true) {
+  if (returnMessage) {
     return data.result;
   }
 
