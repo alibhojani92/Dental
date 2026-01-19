@@ -1,72 +1,39 @@
-// src/bot/router.js
+// src/services/telegram.service.js
 
-import { sendMessage, editMessage, answerCallback } from "../services/telegram.service.js";
-import { startHandler } from "../handlers/start.handler.js";
-import { studyStartHandler, studyStopHandler } from "../handlers/study.handler.js";
-import { MESSAGES } from "./messages.js";
+const API = "https://api.telegram.org/bot";
 
-export async function router(update, env) {
-  try {
-    // ====== CALLBACK QUERY ======
-    if (update.callback_query) {
-      const cb = update.callback_query;
-      const chatId = cb.message.chat.id;
-      const messageId = cb.message.message_id;
-      const data = cb.data;
-      const userId = cb.from.id;
+async function tgFetch(env, method, payload) {
+  const res = await fetch(`${API}${env.TELEGRAM_BOT_TOKEN}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
 
-      // always answer callback (popup)
-      await answerCallback(cb.id, env);
+export async function sendMessage(chatId, text, env, reply_markup = null) {
+  return tgFetch(env, "sendMessage", {
+    chat_id: chatId,
+    text,
+    reply_markup,
+    parse_mode: "Markdown",
+  });
+}
 
-      if (data === "MENU_STUDY") {
-        await studyStartHandler(chatId, userId, env, true);
-        return;
-      }
+export async function editMessage(chatId, messageId, text, env, reply_markup = null) {
+  return tgFetch(env, "editMessageText", {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    reply_markup,
+    parse_mode: "Markdown",
+  });
+}
 
-      if (data === "STOP_STUDY") {
-        await studyStopHandler(chatId, userId, env);
-        return;
-      }
-
-      await editMessage(
-        chatId,
-        messageId,
-        "⚠️ Invalid action.",
-        env
-      );
-      return;
+export async function answerCallback(callbackId, env, text = "") {
+  return tgFetch(env, "answerCallbackQuery", {
+    callback_query_id: callbackId,
+    text,
+    show_alert: false,
+  });
     }
-
-    // ====== MESSAGE ======
-    if (!update.message || !update.message.text) return;
-
-    const chatId = update.message.chat.id;
-    const userId = update.message.from.id;
-    const text = update.message.text.trim();
-
-    // ---- COMMANDS ----
-    if (text === "/start") {
-      await startHandler(chatId, env);
-      return;
-    }
-
-    if (text === "/r") {
-      await studyStartHandler(chatId, userId, env, false);
-      return;
-    }
-
-    if (text === "/s") {
-      await studyStopHandler(chatId, userId, env);
-      return;
-    }
-
-    // fallback
-    await sendMessage(
-      chatId,
-      "❓ Unknown command. Use /start",
-      env
-    );
-  } catch (err) {
-    console.error("ROUTER ERROR:", err);
-  }
-        }
