@@ -1,12 +1,19 @@
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
 export function nowTs() {
   return Date.now();
 }
 
+export function toIST(ts) {
+  return new Date(ts + IST_OFFSET_MS);
+}
+
 export function formatTime(ts) {
-  const d = new Date(ts);
+  const d = toIST(ts);
   return d.toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: true,
   });
 }
 
@@ -21,5 +28,5 @@ export function formatHM(minutes) {
 }
 
 export function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return toIST(Date.now()).toISOString().slice(0, 10);
 }
