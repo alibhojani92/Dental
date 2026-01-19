@@ -2,7 +2,10 @@
 
 import { sendMessage, editMessage, answerCallback } from "../services/telegram.service.js";
 import { startHandler } from "../handlers/start.handler.js";
-import { startReading, stopReading } from "../handlers/study.handler.js";
+import {
+  studyStartHandler,
+  studyStopHandler,
+} from "../handlers/study.handler.js";
 
 // DEBUG (keep during verification)
 console.log("ROUTER FILE LOADED");
@@ -42,7 +45,7 @@ Use the button below to stop an active session.`,
       }
 
       if (data === "STUDY_STOP") {
-        await stopReading(chatId, userId, messageId, env);
+        await studyStopHandler(chatId, userId, env);
         return;
       }
 
@@ -69,17 +72,12 @@ Use the button below to stop an active session.`,
     }
 
     if (text === "/r") {
-      await startReading(chatId, userId, env);
+      await studyStartHandler(chatId, userId, env);
       return;
     }
 
     if (text === "/s") {
-      // instruct to use button (prevents silent stop)
-      await sendMessage(
-        chatId,
-        "ℹ️ Use the ⏹️ *Stop Study* button to stop and save your session.",
-        env
-      );
+      await studyStopHandler(chatId, userId, env);
       return;
     }
 
