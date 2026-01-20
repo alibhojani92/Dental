@@ -1,99 +1,92 @@
-/**
- * STUDY HANDLER (PHASE-3 REWRITE)
- * Fits Phase-1 router/commands WITHOUT changes
- */
-
-import {
-  engineStartStudy,
-  engineStopStudy,
-} from "../engine/study.engine.js";
 import { sendMessage, answerCallback } from "../services/telegram.service.js";
-import { MESSAGES } from "../ui/messages.js";
-import { STUDY_MENU_KEYBOARD } from "../ui/keyboards.js";
-import { CALLBACKS } from "../utils/constants.js";
 
-/* ===============================
-   COMMAND ENTRY POINTS
-   (Called by Phase-1 router/commands)
-================================ */
-
-/**
- * /r
- */
-export async function handleStartStudyCommand(message, env) {
+// ========== COMMAND HANDLER (/r , /s) ==========
+export async function studyCommandHandler(message, env) {
   const chatId = message.chat.id;
-  const user = message.from;
+  const telegramId = message.from.id;
 
-  const result = await engineStartStudy(user, env);
-
-  if (result.status === "ALREADY_RUNNING") {
-    await sendMessage(
-      chatId,
-      MESSAGES.STUDY_ALREADY_RUNNING(result.startTs),
-      env,
-      STUDY_MENU_KEYBOARD
-    );
-    return;
-  }
-
-  await sendMessage(
-    chatId,
-    MESSAGES.STUDY_STARTED(result.startTs),
-    env,
-    STUDY_MENU_KEYBOARD
-  );
+  // Show Study Menu
+  return await sendMessage(chatId, {
+    text:
+      "📚 Study Zone\n\n" +
+      "Track your daily study time️ time.\n" +
+      "Start & Stop anytime.\n\n" +
+      "Choose an action 👇",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "▶️ Start Study", callback_data: "STUDY_START" }],
+        [{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }],
+        [{ text: "⬅️ Back to Main Menu", callback_data: "BACK_TO_MAIN" }],
+      ],
+    },
+  });
 }
 
-/**
- * /s
- */
-export async function handleStopStudyCommand(message, env) {
-  const chatId = message.chat.id;
-  const user = message.from;
+// ========== CALLBACK HANDLER ==========
+export async function studyCallbackHandler(cb, env) {
+  const data = cb.data;
+  const chatId = cb.message.chat.id;
+  const telegramId = cb.from.id;
+  const now = Math.floor(Date.now() / 1000);
 
-  const result = await engineStopStudy(user, env);
+  // ---- START STUDY ----
+  if (data === "STUDY_START") {
+    // check active session
+    const active = await env.DB.prepare(
+      "SELECT id FROM study_sessions WHERE telegram_id = ? AND end_time IS NULL"
+    ).bind(telegramId).first();
 
-  if (result.status === "NOT_RUNNING") {
-    await sendMessage(chatId, MESSAGES.STUDY_NOT_RUNNING, env);
-    return;
+    if (active) {
+      await answerCallback(cb.id, "Study already running");
+      return new Response("OK");
+    }
+
+    await env.DB.prepare(
+      "INSERT INTO study_sessions (telegram_id, start_time) VALUES (?, ?)"
+    ).bind(telegramId, now).run();
+
+    await answerCallback(cb.id, "Study started");
+    await sendMessage(chatId, {
+      text: "▶️ Study Started!\n\nFocus time begins now 💪",
+    });
+    return new Response("OK");
   }
 
-  if (result.status !== "STOPPED") {
-    await sendMessage(chatId, MESSAGES.STUDY_ERROR, env);
-    return;
+  // ---- STOP STUDY ----
+  if (data === "STUDY_STOP") {
+    const session = await env.DB.prepare(
+      "SELECT id, start_time FROM study_sessions WHERE telegram_id = ? AND end_time IS NULL ORDER BY id DESC LIMIT 1"
+    ).bind(telegramId).first();
+
+    if (!session) {
+      await answerCallback(cb.id, "No active study session");
+      return new Response("OK");
+    }
+
+    const duration = now - session.start_time;
+
+    await env.DB.prepare(
+      "UPDATE study_sessions SET end_time = ? WHERE id = ?"
+    ).bind(now, session.id).run();
+
+    await answerCallback(cb.id, "Study stopped");
+    await sendMessage(chatId, {
+      text:
+        "⏹️ Study Stopped\n\n" +
+        `⏱ Duration: ${Math.floor(duration / 60)} min\n\n` +
+        "Great job 👏",
+    });
+    return new Response("OK");
   }
 
-  await sendMessage(
-    chatId,
-    MESSAGES.STUDY_STOPPED_SUMMARY({
-      startTs: result.startTs,
-      endTs: result.endTs,
-      studiedSeconds: result.studiedSeconds,
-      targetMinutes: result.targetMinutes,
-    }),
-    env
-  );
-}
-
-/* ===============================
-   INLINE CALLBACK ENTRY POINT
-   (Called by Phase-1 menu handler)
-================================ */
-
-export async function handleStudyCallback(callbackQuery, env) {
-  const data = callbackQuery.data;
-  const message = callbackQuery.message;
-
-  // Stop Telegram spinner
-  await answerCallback(callbackQuery.id, env);
-
-  if (data === CALLBACKS.STUDY_START) {
-    await handleStartStudyCommand(message, env);
-    return;
+  // ---- BACK ----
+  if (data === "BACK_TO_MAIN") {
+    await answerCallback(cb.id);
+    await sendMessage(chatId, {
+      text: "⬅️ Back to Main Menu\n\nUse /start",
+    });
+    return new Response("OK");
   }
 
-  if (data === CALLBACKS.STUDY_STOP) {
-    await handleStopStudyCommand(message, env);
-    return;
-  }
-}
+  return new Response("OK");
+                      }
