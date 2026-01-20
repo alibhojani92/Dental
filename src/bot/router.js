@@ -1,5 +1,5 @@
 import { sendMessage } from "../services/telegram.service.js";
-import { startHandler } from "../handlers/start.handler.js";
+import startHandler from "../handlers/start.handler.js";
 import {
   startStudy,
   stopStudy,
