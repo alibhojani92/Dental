@@ -1,15 +1,17 @@
-import { sendMessage } from "../services/telegram.service.js";
+/**
+ * COMMAND HANDLER
+ * Phase-3 SAFE VERSION
+ */
+
 import { showStartMenu } from "../handlers/start.handler.js";
+import {
+  handleStartStudyCommand,
+  handleStopStudyCommand,
+} from "../handlers/study.handler.js";
+import { sendMessage } from "../services/telegram.service.js";
 import { MESSAGES } from "../ui/messages.js";
 
-/**
- * Handle slash commands
- * /start
- * /r
- * /s
- * /help
- */
-export async function handleCommand(command, chatId, env) {
+export async function handleCommand(command, chatId, env, message = null) {
   try {
     switch (command) {
       case "/start":
@@ -17,13 +19,17 @@ export async function handleCommand(command, chatId, env) {
         break;
 
       case "/r":
-        // Phase-1: UI only (no study logic yet)
-        await sendMessage(chatId, MESSAGES.START_STUDY_PLACEHOLDER, env);
+        // 🔒 FORCE study handler
+        if (message) {
+          await handleStartStudyCommand(message, env);
+        }
         break;
 
       case "/s":
-        // Phase-1: UI only (no stop logic yet)
-        await sendMessage(chatId, MESSAGES.STOP_STUDY_PLACEHOLDER, env);
+        // 🔒 FORCE study handler
+        if (message) {
+          await handleStopStudyCommand(message, env);
+        }
         break;
 
       case "/help":
