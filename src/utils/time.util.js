@@ -1,32 +1,23 @@
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+// src/utils/time.js
 
-export function nowTs() {
-  return Date.now();
+export function nowIST() {
+  const now = new Date();
+
+  // Convert to IST (UTC +5:30)
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istTime = new Date(now.getTime() + istOffset);
+
+  return istTime;
 }
 
-export function toIST(ts) {
-  return new Date(ts + IST_OFFSET_MS);
-}
-
-export function formatTime(ts) {
-  const d = toIST(ts);
-  return d.toLocaleTimeString("en-IN", {
+export function formatIST(date) {
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
-}
-
-export function diffMinutes(startTs, endTs) {
-  return Math.max(0, Math.floor((endTs - startTs) / 60000));
-}
-
-export function formatHM(minutes) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}h ${m}m`;
-}
-
-export function todayISO() {
-  return toIST(Date.now()).toISOString().slice(0, 10);
 }
