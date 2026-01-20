@@ -1,4 +1,4 @@
-import { routeUpdate } from "./bot/router.js";
+import routeUpdate from "./bot/router.js";
 
 /**
  * Cloudflare Worker entry point
