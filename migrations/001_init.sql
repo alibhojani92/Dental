@@ -1,2 +1,1 @@
--- INITIAL DATABASE SETUP
-.read src/db/schema.sql
+migrations/001_init.sql
