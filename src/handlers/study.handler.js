@@ -1,20 +1,30 @@
-// src/handlers/study.handler.js
+/**
+ * STUDY HANDLER (PHASE-3 REWRITE)
+ * Fits Phase-1 router/commands WITHOUT changes
+ */
 
-import { startStudy, stopStudy } from "../engine/study.engine.js";
+import {
+  engineStartStudy,
+  engineStopStudy,
+} from "../engine/study.engine.js";
 import { sendMessage, answerCallback } from "../services/telegram.service.js";
 import { MESSAGES } from "../ui/messages.js";
 import { STUDY_MENU_KEYBOARD } from "../ui/keyboards.js";
 import { CALLBACKS } from "../utils/constants.js";
 
 /* ===============================
-   COMMANDS
+   COMMAND ENTRY POINTS
+   (Called by Phase-1 router/commands)
 ================================ */
 
-export async function startStudyCommand(message, env) {
+/**
+ * /r
+ */
+export async function handleStartStudyCommand(message, env) {
   const chatId = message.chat.id;
   const user = message.from;
 
-  const result = await startStudy(user, env);
+  const result = await engineStartStudy(user, env);
 
   if (result.status === "ALREADY_RUNNING") {
     await sendMessage(
@@ -34,11 +44,14 @@ export async function startStudyCommand(message, env) {
   );
 }
 
-export async function stopStudyCommand(message, env) {
+/**
+ * /s
+ */
+export async function handleStopStudyCommand(message, env) {
   const chatId = message.chat.id;
   const user = message.from;
 
-  const result = await stopStudy(user, env);
+  const result = await engineStopStudy(user, env);
 
   if (result.status === "NOT_RUNNING") {
     await sendMessage(chatId, MESSAGES.STUDY_NOT_RUNNING, env);
@@ -63,22 +76,24 @@ export async function stopStudyCommand(message, env) {
 }
 
 /* ===============================
-   CALLBACKS
+   INLINE CALLBACK ENTRY POINT
+   (Called by Phase-1 menu handler)
 ================================ */
 
-export async function studyCallback(callbackQuery, env) {
+export async function handleStudyCallback(callbackQuery, env) {
   const data = callbackQuery.data;
   const message = callbackQuery.message;
 
+  // Stop Telegram spinner
   await answerCallback(callbackQuery.id, env);
 
   if (data === CALLBACKS.STUDY_START) {
-    await startStudyCommand(message, env);
+    await handleStartStudyCommand(message, env);
     return;
   }
 
   if (data === CALLBACKS.STUDY_STOP) {
-    await stopStudyCommand(message, env);
+    await handleStopStudyCommand(message, env);
     return;
   }
 }
