@@ -63,4 +63,4 @@ export async function routeUpdate(update, env) {
   } catch (err) {
     console.error("ROUTER ERROR:", err);
   }
-  }
+}
