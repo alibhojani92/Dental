@@ -1,93 +1,87 @@
-// src/handlers/study.handler.js
+/**
+ * STUDY HANDLER
+ * Phase-3: Telegram ↔ Study Engine bridge
+ */
 
-/* ===== Helpers (IST safe) ===== */
-function fmtTime(ts) {
-  return new Date(ts).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "Asia/Kolkata",
-  });
-}
+import { startStudy, stopStudy } from "../engine/study.engine.js";
+import { sendMessage, answerCallback } from "../services/telegram.service.js";
+import { MESSAGES } from "../ui/messages.js";
+import { STUDY_MENU_KEYBOARD } from "../ui/keyboards.js";
+import { CALLBACKS } from "../utils/constants.js";
 
-function diffMinutes(startMs, endMs) {
-  return Math.floor((endMs - startMs) / 60000);
-}
+/* ===============================
+   COMMAND HANDLERS
+================================ */
 
-function fmtHM(min) {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return `${h}h ${m}m`;
-}
+export async function handleStartStudyCommand(message, env) {
+  const user = message.from;
+  const chatId = message.chat.id;
 
-const DAILY_TARGET_MIN = 8 * 60;
-const kvKey = (uid) => `study:active:${uid}`;
+  const result = await startStudy(user, env);
 
-/* ===== START STUDY ===== */
-export async function studyStartHandler(chatId, userId, env) {
-  const existing = await env.KV.get(kvKey(userId), { type: "json" });
-  const startTs = Date.now();
-
-  if (existing) {
-    const elapsed = diffMinutes(existing.startTs, startTs);
-    return {
-      text: `Study session already running.
-
-Started at: ${fmtTime(existing.startTs)}
-Elapsed time: ${fmtHM(elapsed)}
-
-Please stop the current session first.`,
-      keyboard: {
-        inline_keyboard: [[{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }]],
-      },
-    };
+  if (result.status === "ALREADY_RUNNING") {
+    await sendMessage(
+      chatId,
+      MESSAGES.STUDY_ALREADY_RUNNING(result.startTs),
+      env,
+      STUDY_MENU_KEYBOARD
+    );
+    return;
   }
 
-  await env.KV.put(
-    kvKey(userId),
-    JSON.stringify({ startTs })
+  await sendMessage(
+    chatId,
+    MESSAGES.STUDY_STARTED(result.startTs),
+    env,
+    STUDY_MENU_KEYBOARD
   );
-
-  return {
-    text: `Study Started
-
-Study timer started at: ${fmtTime(startTs)}
-Elapsed time: 0m
-
-Default daily target: 8 hours`,
-    keyboard: {
-      inline_keyboard: [[{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }]],
-    },
-  };
 }
 
-/* ===== STOP STUDY ===== */
-export async function studyStopHandler(userId, env) {
-  const data = await env.KV.get(kvKey(userId), { type: "json" });
-  if (!data) {
-    return "No active study session found.";
+export async function handleStopStudyCommand(message, env) {
+  const user = message.from;
+  const chatId = message.chat.id;
+
+  const result = await stopStudy(user, env);
+
+  if (result.status === "NOT_RUNNING") {
+    await sendMessage(chatId, MESSAGES.STUDY_NOT_RUNNING, env);
+    return;
   }
 
-  const endTs = Date.now();
-  const minutes = diffMinutes(data.startTs, endTs);
-  await env.KV.delete(kvKey(userId));
-
-  if (minutes >= DAILY_TARGET_MIN) {
-    return `🎯 Daily Target Achieved!
-
-Started at: ${fmtTime(data.startTs)}
-Stopped at: ${fmtTime(endTs)}
-
-Total studied today: ${fmtHM(minutes)}
-
-Excellent discipline for GPSC Dental Class-2 🏆`;
+  if (result.status !== "STOPPED") {
+    await sendMessage(chatId, MESSAGES.STUDY_ERROR, env);
+    return;
   }
 
-  return `Study Stopped
+  await sendMessage(
+    chatId,
+    MESSAGES.STUDY_STOPPED_SUMMARY({
+      startTs: result.startTs,
+      endTs: result.endTs,
+      studiedSeconds: result.studiedSeconds,
+      targetMinutes: result.targetMinutes,
+    }),
+    env
+  );
+}
 
-Started at: ${fmtTime(data.startTs)}
-Stopped at: ${fmtTime(endTs)}
+/* ===============================
+   INLINE CALLBACK HANDLERS
+================================ */
 
-Total studied today: ${fmtHM(minutes)}
-Remaining target: ${fmtHM(DAILY_TARGET_MIN - minutes)}`;
-    }
+export async function handleStudyCallback(callbackQuery, env) {
+  const data = callbackQuery.data;
+  const message = callbackQuery.message;
+
+  await answerCallback(callbackQuery.id, env);
+
+  if (data === CALLBACKS.STUDY_START) {
+    await handleStartStudyCommand(message, env);
+    return;
+  }
+
+  if (data === CALLBACKS.STUDY_STOP) {
+    await handleStopStudyCommand(message, env);
+    return;
+  }
+      }
