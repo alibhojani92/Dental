@@ -1,19 +1,7 @@
-const BOT_API = "https://api.telegram.org/bot";
+import { sendMessage } from "../services/telegram.service.js";
 
 function istNow() {
   return Math.floor(Date.now() / 1000);
-}
-
-async function sendMessage(env, chatId, text, replyMarkup = null) {
-  await fetch(`${BOT_API}${env.BOT_TOKEN}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      reply_markup: replyMarkup,
-    }),
-  });
 }
 
 /* =========================
@@ -23,9 +11,9 @@ export async function studyMenuHandler(msg, env) {
   const chatId = msg.chat.id;
 
   await sendMessage(
-    env,
     chatId,
     "📚 Study Zone\n\nTrack your daily study time.\nChoose an action 👇",
+    env,
     {
       inline_keyboard: [
         [{ text: "▶️ Start Study", callback_data: "STUDY_START" }],
@@ -42,23 +30,24 @@ export async function studyStartHandler(cq, env) {
   const telegramId = cq.from.id;
   const chatId = cq.message.chat.id;
 
-  const existing = await env.DB.prepare(
+  const active = await env.DB.prepare(
     "SELECT id FROM study_sessions WHERE telegram_id = ? AND end_time IS NULL"
   ).bind(telegramId).first();
 
-  if (existing) {
-    return await sendMessage(env, chatId, "⚠️ Study already running.");
+  if (active) {
+    await sendMessage(chatId, "⚠️ Study already running.", env);
+    return;
   }
 
   await env.DB.prepare(
     "INSERT INTO study_sessions (telegram_id, start_time) VALUES (?, ?)"
   ).bind(telegramId, istNow()).run();
 
-  await sendMessage(env, chatId, "▶️ Study started successfully.");
+  await sendMessage(chatId, "▶️ Study started successfully.", env);
 }
 
 /* =========================
-   STOP STUDY (/s or button)
+   STOP STUDY
 ========================= */
 export async function studyStopHandler(input, env) {
   const telegramId = input.from.id;
@@ -69,7 +58,8 @@ export async function studyStopHandler(input, env) {
   ).bind(telegramId).first();
 
   if (!session) {
-    return await sendMessage(env, chatId, "⚠️ No active study session.");
+    await sendMessage(chatId, "⚠️ No active study session.", env);
+    return;
   }
 
   const end = istNow();
@@ -82,8 +72,8 @@ export async function studyStopHandler(input, env) {
   const mins = Math.floor(duration / 60);
 
   await sendMessage(
-    env,
     chatId,
-    `🎯 Study Session Saved!\n\n⏱ Duration: ${mins} minutes\nGreat discipline 💪`
+    `🎯 Study Session Saved!\n\n⏱ Duration: ${mins} minutes\nGreat discipline 💪`,
+    env
   );
-      }
+}
