@@ -1,27 +1,27 @@
 /**
- * CENTRAL ROUTER
- * Phase-1 UI + Phase-3 Study wiring
+ * CENTRAL ROUTER – FINAL FIX
+ * Phase-3 stable routing
  */
 
-import { handleCommand } from "./commands.js";
 import { handleMenuCallback } from "../handlers/menu.handler.js";
 import {
   handleStartStudyCommand,
   handleStopStudyCommand,
   handleStudyCallback,
 } from "../handlers/study.handler.js";
+import { handleCommand } from "./commands.js";
 import { CALLBACKS } from "../utils/constants.js";
 
 export async function routeUpdate(update, env) {
   try {
     /* ===============================
-       TEXT COMMANDS
+       TEXT MESSAGES
     ================================ */
     if (update.message && update.message.text) {
       const text = update.message.text.trim();
       const chatId = update.message.chat.id;
 
-      // Study shortcuts
+      // 🔥 STUDY COMMANDS – DIRECT
       if (text === "/r") {
         await handleStartStudyCommand(update.message, env);
         return;
@@ -32,35 +32,32 @@ export async function routeUpdate(update, env) {
         return;
       }
 
-      // Other commands (/start, /help)
+      // Other commands
       if (text.startsWith("/")) {
-        await handleCommand(text, chatId, env);
+        await handleCommand(text, chatId, env, update.message);
         return;
       }
     }
 
     /* ===============================
-       INLINE CALLBACKS
+       CALLBACK QUERIES
     ================================ */
     if (update.callback_query) {
       const data = update.callback_query.data;
 
-      // Study buttons
-      if (
-        data === CALLBACKS.STUDY_START ||
-        data === CALLBACKS.STUDY_STOP
-      ) {
+      // 🔥 STUDY CALLBACKS – DIRECT
+      if (data === CALLBACKS.STUDY_START || data === CALLBACKS.STUDY_STOP) {
         await handleStudyCallback(update.callback_query, env);
         return;
       }
 
-      // All other menus
+      // Other menus
       await handleMenuCallback(update.callback_query, env);
       return;
     }
 
-    console.log("UNHANDLED UPDATE TYPE");
+    console.log("UNHANDLED UPDATE", JSON.stringify(update));
   } catch (err) {
     console.error("ROUTER ERROR:", err);
   }
-                                  }
+                            }
