@@ -1,18 +1,7 @@
-export const CALLBACK_IDS = [
-  "MENU_STUDY",
-  "MENU_TEST",
-  "MENU_PERFORMANCE",
-  "MENU_REVISION",
-  "MENU_SCHEDULE",
-  "MENU_STREAK",
-  "MENU_SETTINGS",
-  "MENU_ADMIN",
-  "MENU_HELP",
+export function isTextMessage(update) {
+  return update.message && typeof update.message.text === "string";
+}
 
-  // STUDY ACTIONS
-  "STUDY_STOP",
-];
-
-export function isValidCallback(data) {
-  return CALLBACK_IDS.includes(data);
+export function isCallback(update) {
+  return !!update.callback_query;
 }
