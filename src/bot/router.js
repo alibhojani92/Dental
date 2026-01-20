@@ -1,35 +1,41 @@
-import { sendMessage, answerCallback } from "../services/telegram.service.js";
-import { mainMenuKeyboard } from "./keyboards.js";
-import { START_MESSAGE } from "./messages.js";
-import { isTextMessage, isCallback } from "./validator.js";
-import { CALLBACKS } from "../config/constants.js";
+import { handleCommand } from "./commands.js";
+import { handleMenuCallback } from "../handlers/menu.handler.js";
 
-export default async function router(update, env) {
-  /* COMMANDS */
-  if (isTextMessage(update)) {
-    const chatId = update.message.chat.id;
-    const text = update.message.text.trim();
+/**
+ * Central update router
+ * Decides whether update is:
+ * - Command (/start, /r, /s, /help)
+ * - Inline keyboard callback
+ */
+export async function routeUpdate(update, env) {
+  try {
+    /* -----------------------------
+       TEXT MESSAGE (COMMANDS)
+    ----------------------------- */
+    if (update.message && update.message.text) {
+      const chatId = update.message.chat.id;
+      const text = update.message.text.trim();
 
-    if (text === "/start") {
-      await sendMessage(chatId, START_MESSAGE, env, mainMenuKeyboard());
+      // Only commands handled here
+      if (text.startsWith("/")) {
+        await handleCommand(text, chatId, env);
+        return;
+      }
+    }
+
+    /* -----------------------------
+       INLINE KEYBOARD CALLBACK
+    ----------------------------- */
+    if (update.callback_query) {
+      await handleMenuCallback(update.callback_query, env);
       return;
     }
-  }
 
-  /* CALLBACKS */
-  if (isCallback(update)) {
-    const cb = update.callback_query;
-    const chatId = cb.message.chat.id;
-    const data = cb.data;
-
-    await answerCallback(cb.id, env);
-
-    if (Object.values(CALLBACKS).includes(data)) {
-      await sendMessage(
-        chatId,
-        "Feature will be activated in upcoming phases 🚧",
-        env
-      );
-    }
+    /* -----------------------------
+       UNSUPPORTED UPDATE
+    ----------------------------- */
+    console.log("UNHANDLED UPDATE TYPE");
+  } catch (err) {
+    console.error("ROUTER ERROR:", err);
   }
 }
