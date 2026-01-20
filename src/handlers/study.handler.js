@@ -1,87 +1,98 @@
-/**
- * STUDY HANDLER
- * Phase-3: Telegram ↔ Study Engine bridge
- */
+import { sendMessage } from "../services/telegram.service.js";
+import { nowIST } from "../utils/time.js";
 
-import { startStudy, stopStudy } from "../engine/study.engine.js";
-import { sendMessage, answerCallback } from "../services/telegram.service.js";
-import { MESSAGES } from "../ui/messages.js";
-import { STUDY_MENU_KEYBOARD } from "../ui/keyboards.js";
-import { CALLBACKS } from "../utils/constants.js";
+function stopKeyboard() {
+  return {
+    inline_keyboard: [
+      [{ text: "⏹ Stop Study", callback_data: "STUDY_STOP" }],
+    ],
+  };
+}
 
-/* ===============================
-   COMMAND HANDLERS
-================================ */
+// ================= START STUDY =================
+export async function startStudy({ chatId, telegramId, env }) {
+  console.log("START STUDY HANDLER HIT", telegramId);
 
-export async function handleStartStudyCommand(message, env) {
-  const user = message.from;
-  const chatId = message.chat.id;
+  const startTime = nowIST();
 
-  const result = await startStudy(user, env);
+  // check active session
+  const active = await env.DB.prepare(
+    `SELECT * FROM reading_sessions 
+     WHERE telegram_id = ? AND end_time IS NULL`
+  )
+    .bind(telegramId)
+    .first();
 
-  if (result.status === "ALREADY_RUNNING") {
+  if (!active) {
+    await env.DB.prepare(
+      `INSERT INTO reading_sessions 
+       (telegram_id, start_time) VALUES (?, ?)`
+    )
+      .bind(telegramId, startTime)
+      .run();
+  }
+
+  // ✅ REPLY MUST ALWAYS COME
+  await sendMessage(
+    chatId,
+    `📖 Study Started
+
+⏱️ Start Time: ${startTime}
+
+Focus mode ON 🔥`,
+    env,
+    stopKeyboard()
+  );
+}
+
+// ================= STOP STUDY =================
+export async function stopStudy({ chatId, telegramId, env }) {
+  console.log("STOP STUDY HANDLER HIT", telegramId);
+
+  const session = await env.DB.prepare(
+    `SELECT * FROM reading_sessions 
+     WHERE telegram_id = ? AND end_time IS NULL
+     ORDER BY start_time DESC LIMIT 1`
+  )
+    .bind(telegramId)
+    .first();
+
+  if (!session) {
     await sendMessage(
       chatId,
-      MESSAGES.STUDY_ALREADY_RUNNING(result.startTs),
-      env,
-      STUDY_MENU_KEYBOARD
+      "⚠️ No active study session found.",
+      env
     );
     return;
   }
 
+  const endTime = nowIST();
+
+  await env.DB.prepare(
+    `UPDATE reading_sessions 
+     SET end_time = ? WHERE id = ?`
+  )
+    .bind(endTime, session.id)
+    .run();
+
+  // duration calc (minutes)
+  const start = new Date(session.start_time);
+  const end = new Date(endTime);
+  const diffMin = Math.floor((end - start) / 60000);
+  const h = Math.floor(diffMin / 60);
+  const m = diffMin % 60;
+
+  // ✅ FINAL CONFIRMATION MESSAGE (NO POPUP ONLY)
   await sendMessage(
     chatId,
-    MESSAGES.STUDY_STARTED(result.startTs),
-    env,
-    STUDY_MENU_KEYBOARD
-  );
-}
+    `🎯 Study Session Completed!
 
-export async function handleStopStudyCommand(message, env) {
-  const user = message.from;
-  const chatId = message.chat.id;
+Started at: ${session.start_time}
+Stopped at: ${endTime}
 
-  const result = await stopStudy(user, env);
+Total studied: ${h}h ${m}m
 
-  if (result.status === "NOT_RUNNING") {
-    await sendMessage(chatId, MESSAGES.STUDY_NOT_RUNNING, env);
-    return;
-  }
-
-  if (result.status !== "STOPPED") {
-    await sendMessage(chatId, MESSAGES.STUDY_ERROR, env);
-    return;
-  }
-
-  await sendMessage(
-    chatId,
-    MESSAGES.STUDY_STOPPED_SUMMARY({
-      startTs: result.startTs,
-      endTs: result.endTs,
-      studiedSeconds: result.studiedSeconds,
-      targetMinutes: result.targetMinutes,
-    }),
+Excellent discipline for GPSC Dental Class-2 🏆`,
     env
   );
 }
-
-/* ===============================
-   INLINE CALLBACK HANDLERS
-================================ */
-
-export async function handleStudyCallback(callbackQuery, env) {
-  const data = callbackQuery.data;
-  const message = callbackQuery.message;
-
-  await answerCallback(callbackQuery.id, env);
-
-  if (data === CALLBACKS.STUDY_START) {
-    await handleStartStudyCommand(message, env);
-    return;
-  }
-
-  if (data === CALLBACKS.STUDY_STOP) {
-    await handleStopStudyCommand(message, env);
-    return;
-  }
-      }
