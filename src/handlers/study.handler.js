@@ -1,92 +1,89 @@
-import { sendMessage, answerCallback } from "../services/telegram.service.js";
+const BOT_API = "https://api.telegram.org/bot";
 
-// ========== COMMAND HANDLER (/r , /s) ==========
-export async function studyCommandHandler(message, env) {
-  const chatId = message.chat.id;
-  const telegramId = message.from.id;
+function istNow() {
+  return Math.floor(Date.now() / 1000);
+}
 
-  // Show Study Menu
-  return await sendMessage(chatId, {
-    text:
-      "📚 Study Zone\n\n" +
-      "Track your daily study time️ time.\n" +
-      "Start & Stop anytime.\n\n" +
-      "Choose an action 👇",
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "▶️ Start Study", callback_data: "STUDY_START" }],
-        [{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }],
-        [{ text: "⬅️ Back to Main Menu", callback_data: "BACK_TO_MAIN" }],
-      ],
-    },
+async function sendMessage(env, chatId, text, replyMarkup = null) {
+  await fetch(`${BOT_API}${env.BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      reply_markup: replyMarkup,
+    }),
   });
 }
 
-// ========== CALLBACK HANDLER ==========
-export async function studyCallbackHandler(cb, env) {
-  const data = cb.data;
-  const chatId = cb.message.chat.id;
-  const telegramId = cb.from.id;
-  const now = Math.floor(Date.now() / 1000);
+/* =========================
+   STUDY MENU (/r)
+========================= */
+export async function studyMenuHandler(msg, env) {
+  const chatId = msg.chat.id;
 
-  // ---- START STUDY ----
-  if (data === "STUDY_START") {
-    // check active session
-    const active = await env.DB.prepare(
-      "SELECT id FROM study_sessions WHERE telegram_id = ? AND end_time IS NULL"
-    ).bind(telegramId).first();
-
-    if (active) {
-      await answerCallback(cb.id, "Study already running");
-      return new Response("OK");
+  await sendMessage(
+    env,
+    chatId,
+    "📚 Study Zone\n\nTrack your daily study time.\nChoose an action 👇",
+    {
+      inline_keyboard: [
+        [{ text: "▶️ Start Study", callback_data: "STUDY_START" }],
+        [{ text: "⏹️ Stop Study", callback_data: "STUDY_STOP" }],
+      ],
     }
+  );
+}
 
-    await env.DB.prepare(
-      "INSERT INTO study_sessions (telegram_id, start_time) VALUES (?, ?)"
-    ).bind(telegramId, now).run();
+/* =========================
+   START STUDY
+========================= */
+export async function studyStartHandler(cq, env) {
+  const telegramId = cq.from.id;
+  const chatId = cq.message.chat.id;
 
-    await answerCallback(cb.id, "Study started");
-    await sendMessage(chatId, {
-      text: "▶️ Study Started!\n\nFocus time begins now 💪",
-    });
-    return new Response("OK");
+  const existing = await env.DB.prepare(
+    "SELECT id FROM study_sessions WHERE telegram_id = ? AND end_time IS NULL"
+  ).bind(telegramId).first();
+
+  if (existing) {
+    return await sendMessage(env, chatId, "⚠️ Study already running.");
   }
 
-  // ---- STOP STUDY ----
-  if (data === "STUDY_STOP") {
-    const session = await env.DB.prepare(
-      "SELECT id, start_time FROM study_sessions WHERE telegram_id = ? AND end_time IS NULL ORDER BY id DESC LIMIT 1"
-    ).bind(telegramId).first();
+  await env.DB.prepare(
+    "INSERT INTO study_sessions (telegram_id, start_time) VALUES (?, ?)"
+  ).bind(telegramId, istNow()).run();
 
-    if (!session) {
-      await answerCallback(cb.id, "No active study session");
-      return new Response("OK");
-    }
+  await sendMessage(env, chatId, "▶️ Study started successfully.");
+}
 
-    const duration = now - session.start_time;
+/* =========================
+   STOP STUDY (/s or button)
+========================= */
+export async function studyStopHandler(input, env) {
+  const telegramId = input.from.id;
+  const chatId = input.message?.chat.id || input.chat.id;
 
-    await env.DB.prepare(
-      "UPDATE study_sessions SET end_time = ? WHERE id = ?"
-    ).bind(now, session.id).run();
+  const session = await env.DB.prepare(
+    "SELECT * FROM study_sessions WHERE telegram_id = ? AND end_time IS NULL ORDER BY id DESC LIMIT 1"
+  ).bind(telegramId).first();
 
-    await answerCallback(cb.id, "Study stopped");
-    await sendMessage(chatId, {
-      text:
-        "⏹️ Study Stopped\n\n" +
-        `⏱ Duration: ${Math.floor(duration / 60)} min\n\n` +
-        "Great job 👏",
-    });
-    return new Response("OK");
+  if (!session) {
+    return await sendMessage(env, chatId, "⚠️ No active study session.");
   }
 
-  // ---- BACK ----
-  if (data === "BACK_TO_MAIN") {
-    await answerCallback(cb.id);
-    await sendMessage(chatId, {
-      text: "⬅️ Back to Main Menu\n\nUse /start",
-    });
-    return new Response("OK");
-  }
+  const end = istNow();
+  const duration = end - session.start_time;
 
-  return new Response("OK");
-                      }
+  await env.DB.prepare(
+    "UPDATE study_sessions SET end_time = ? WHERE id = ?"
+  ).bind(end, session.id).run();
+
+  const mins = Math.floor(duration / 60);
+
+  await sendMessage(
+    env,
+    chatId,
+    `🎯 Study Session Saved!\n\n⏱ Duration: ${mins} minutes\nGreat discipline 💪`
+  );
+      }
