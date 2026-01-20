@@ -1,39 +1,30 @@
 // src/bot/router.js
 
-import { startHandler } from "../handlers/start.handler.js";
-import {
-  handleStartStudyCommand,
-  handleStopStudyCommand,
-  handleStudyCallback,
-} from "../handlers/study.handler.js";
-import { handleMenuCallback } from "../handlers/menu.handler.js";
 import { handleCommand } from "./commands.js";
+import { handleMenuCallback } from "../handlers/menu.handler.js";
+import {
+  startStudyCommand,
+  stopStudyCommand,
+  studyCallback,
+} from "../handlers/study.handler.js";
 import { CALLBACKS } from "../utils/constants.js";
 
-/**
- * Named export (IMPORTANT)
- */
 export async function routeUpdate(update, env) {
   try {
     /* ===============================
-       TEXT COMMANDS
+       MESSAGES
     ================================ */
     if (update.message && update.message.text) {
       const text = update.message.text.trim();
       const chatId = update.message.chat.id;
 
-      if (text === "/start") {
-        await startHandler(chatId, env);
-        return;
-      }
-
       if (text === "/r") {
-        await handleStartStudyCommand(update.message, env);
+        await startStudyCommand(update.message, env);
         return;
       }
 
       if (text === "/s") {
-        await handleStopStudyCommand(update.message, env);
+        await stopStudyCommand(update.message, env);
         return;
       }
 
@@ -44,7 +35,7 @@ export async function routeUpdate(update, env) {
     }
 
     /* ===============================
-       CALLBACK QUERIES
+       CALLBACKS
     ================================ */
     if (update.callback_query) {
       const data = update.callback_query.data;
@@ -53,7 +44,7 @@ export async function routeUpdate(update, env) {
         data === CALLBACKS.STUDY_START ||
         data === CALLBACKS.STUDY_STOP
       ) {
-        await handleStudyCallback(update.callback_query, env);
+        await studyCallback(update.callback_query, env);
         return;
       }
 
