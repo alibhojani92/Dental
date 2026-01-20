@@ -1,81 +1,66 @@
-import { sendMessage } from "../services/telegram.service.js";
-import startHandler from "../handlers/start.handler.js";
+// src/bot/router.js
+
+import { startHandler } from "../handlers/start.handler.js";
 import {
-  startStudy,
-  stopStudy,
+  handleStartStudyCommand,
+  handleStopStudyCommand,
+  handleStudyCallback,
 } from "../handlers/study.handler.js";
+import { handleMenuCallback } from "../handlers/menu.handler.js";
+import { handleCommand } from "./commands.js";
+import { CALLBACKS } from "../utils/constants.js";
 
-export async function router(update, env) {
+/**
+ * Named export (IMPORTANT)
+ */
+export async function routeUpdate(update, env) {
   try {
-    // ===== MESSAGE HANDLING =====
-    if (update.message) {
+    /* ===============================
+       TEXT COMMANDS
+    ================================ */
+    if (update.message && update.message.text) {
+      const text = update.message.text.trim();
       const chatId = update.message.chat.id;
-      const text = update.message.text || "";
-      const telegramId = update.message.from.id;
 
-      // /start
       if (text === "/start") {
         await startHandler(chatId, env);
         return;
       }
 
-      // /r → START STUDY
       if (text === "/r") {
-        await startStudy({
-          chatId,
-          telegramId,
-          env,
-        });
+        await handleStartStudyCommand(update.message, env);
         return;
       }
 
-      // /s → STOP STUDY
       if (text === "/s") {
-        await stopStudy({
-          chatId,
-          telegramId,
-          env,
-        });
+        await handleStopStudyCommand(update.message, env);
         return;
       }
 
-      // fallback
-      await sendMessage(
-        chatId,
-        "❓ Unknown command.\nUse /r to start study, /s to stop.",
-        env
-      );
-      return;
+      if (text.startsWith("/")) {
+        await handleCommand(text, chatId, env, update.message);
+        return;
+      }
     }
 
-    // ===== CALLBACK HANDLING =====
+    /* ===============================
+       CALLBACK QUERIES
+    ================================ */
     if (update.callback_query) {
-      const cb = update.callback_query;
-      const chatId = cb.message.chat.id;
-      const telegramId = cb.from.id;
-      const data = cb.data;
+      const data = update.callback_query.data;
 
-      if (data === "STUDY_START") {
-        await startStudy({
-          chatId,
-          telegramId,
-          env,
-        });
+      if (
+        data === CALLBACKS.STUDY_START ||
+        data === CALLBACKS.STUDY_STOP
+      ) {
+        await handleStudyCallback(update.callback_query, env);
         return;
       }
 
-      if (data === "STUDY_STOP") {
-        await stopStudy({
-          chatId,
-          telegramId,
-          env,
-        });
-        return;
-      }
-
-      await sendMessage(chatId, "⚠️ Invalid action", env);
+      await handleMenuCallback(update.callback_query, env);
+      return;
     }
   } catch (err) {
     console.error("ROUTER ERROR:", err);
   }
-          }
+  }
